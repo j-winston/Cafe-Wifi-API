@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, abort, make_response
 from flask_sqlalchemy import SQLAlchemy
 import random
 from distutils.util import strtobool
@@ -34,13 +34,14 @@ class Cafe(db.Model):
 
     def update(self, cafe, request_args):
         for key, value in request.args.items():
-            # convert to bool to avoid error
             if value == '0' or value == '1':
                 value = strtobool(value)
-            setattr(self, key, value)
-
+            if key not in self.__dict__:
+                error_flag = f"Key '{key}' does not exist. Value not updated."
+                return error_flag
+            else:
+                setattr(self, key, value)
         db.session.commit()
-
 
 
 
@@ -136,17 +137,42 @@ def add():
 # HTTP PUT/PATCH - Update Record
 @app.route('/update-price/<cafe_id>', methods=['PUT', 'PATCH'])
 def update_price(cafe_id):
-    # search cafe for id
-    cafe = Cafe.query.get(cafe_id)
+    not_found_error = {
+        "error": {
+            "Not Found": "Sorry, a cafe with that id was not found in the database."
+        }
+    }
 
-    # Find cafe and update record(s), if not found, return error
+    failed_update = {
+        "Error": {
+            "Cafe Not Updated": "Make sure all keys exist in db."
+        }
+    }
+
+    success = {
+        "Success": "Your updates have been successfully applied."
+    }
+
     try:
+        cafe = Cafe.query.get(cafe_id)
         cafe_json = cafe.return_dict()
     except AttributeError:
-        return "Cafe doesn't exist!"
+        return jsonify(not_found_error), 404
     else:
-        cafe.update(cafe, request.args)
-        return jsonify(cafe_json)
+        # update cafe with key-values from request.args
+        update_error = cafe.update(cafe, request.args)
+        if update_error:
+            print(update_error)
+            return jsonify(failed_update), 422
+        return jsonify(success)
+
+
+@app.route('/report-closed/<cafe_id>', methods=['DELETE'])
+def delete(cafe_id):
+    user_key = request.args['api-key']
+    return user_key
+
+
 
 
 
