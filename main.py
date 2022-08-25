@@ -2,6 +2,8 @@ from flask import Flask, jsonify, render_template, request, abort, make_response
 from flask_sqlalchemy import SQLAlchemy
 import random
 from distutils.util import strtobool
+from api_config import API_KEY
+from responses import *
 
 app = Flask(__name__)
 
@@ -9,7 +11,6 @@ app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///cafes.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
-
 
 ##Cafe TABLE Configuration
 class Cafe(db.Model):
@@ -44,25 +45,11 @@ class Cafe(db.Model):
         db.session.commit()
 
 
-
-        # for key, value in request.args.items():
-        #     print(key, value)
-        #     # update each key's value
-        #     # setattr(self, key, value)
-        #     # dont forget to commit!
-        #     db.session.commit()
-
-
-
-
-
-
 @app.route("/")
 def home():
     return render_template("index.html")
 
 
-## HTTP GET - Read Record
 @app.route("/random")
 def random_cafe():
     rand_num = random.randrange(0, db.session.query(Cafe).count())
@@ -88,16 +75,11 @@ def all_records():
 
 @app.route('/search')
 def search():
-    error = {
-        "error": {
-            "Not Found": "Sorry, we don't have a cafe at that location."
-        }
-    }
     searchword = request.args.get('location')
     # if location isn't found return error
     r = Cafe.query.filter_by(location=searchword).first()
     if not r:
-        return jsonify(error)
+        return jsonify(location_error), 404
     else:
         return jsonify(r.return_dict())
 
@@ -105,18 +87,6 @@ def search():
 # HTTP POST - Create Record
 @app.route('/add', methods=['POST'])
 def add():
-    success_response = {
-        "response": {
-            "success": "Successfully added the new cafe."
-        }
-    }
-
-    error = {
-        "error": {
-            "Not Found": "Sorry, we don't have a cafe at that location."
-        }
-    }
-
     new_cafe = Cafe()
     new_cafe.location = request.args.get('location')
     new_cafe.name = request.args.get('name')
@@ -131,31 +101,13 @@ def add():
     db.session.add(new_cafe)
     db.session.commit()
 
-    return jsonify(success_response)
+    return jsonify(successfully_added), 200
 
 
-# HTTP PUT/PATCH - Update Record
 @app.route('/update-price/<cafe_id>', methods=['PUT', 'PATCH'])
 def update_price(cafe_id):
-    not_found_error = {
-        "error": {
-            "Not Found": "Sorry, a cafe with that id was not found in the database."
-        }
-    }
-
-    failed_update = {
-        "Error": {
-            "Cafe Not Updated": "Make sure all keys exist in db."
-        }
-    }
-
-    success = {
-        "Success": "Your updates have been successfully applied."
-    }
-
     try:
         cafe = Cafe.query.get(cafe_id)
-        cafe_json = cafe.return_dict()
     except AttributeError:
         return jsonify(not_found_error), 404
     else:
@@ -170,7 +122,14 @@ def update_price(cafe_id):
 @app.route('/report-closed/<cafe_id>', methods=['DELETE'])
 def delete(cafe_id):
     user_key = request.args['api-key']
-    return user_key
+    if user_key == API_KEY:
+        cafe = Cafe.query.get(cafe_id)
+        if cafe:
+            db.session.delete(cafe)
+            db.session.commit()
+        else:
+            return jsonify(not_found_error), 404
+
 
 
 
