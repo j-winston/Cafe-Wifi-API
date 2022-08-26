@@ -127,8 +127,11 @@ def delete(cafe_id):
         if cafe:
             db.session.delete(cafe)
             db.session.commit()
+            return jsonify(successfully_deleted), 200
         else:
             return jsonify(not_found_error), 404
+    else:
+        return jsonify(bad_key_error), 403
 
 
 

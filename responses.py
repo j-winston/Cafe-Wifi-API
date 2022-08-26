@@ -19,5 +19,14 @@ location_error = {
 }
 
 successfully_added = {
-    "Success" "Cafe was successfully added"
+    "Success": "Cafe was successfully added"
+}
+
+bad_key_error = {
+    "Bad Key": "Authentication failed."
+}
+
+
+successfully_deleted = {
+    "Cafe deleted": "Location was successfully removed."
 }
